@@ -1,0 +1,619 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>6con — economic laboratory V0</title>
+<style>
+  :root{
+    --bg: #060a0c;
+    --panel: #0b1416;
+    --panel2: #0e1a1d;
+    --teal: #33d9c4;
+    --teal-dim: #1a7a6e;
+    --amber: #f2a94e;
+    --amber-dim: #8a5f22;
+    --text: #d8f3ee;
+    --text-dim: #7fa39a;
+    --line: #163330;
+    --danger: #e0654f;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;background:var(--bg);color:var(--text);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+    -webkit-tap-highlight-color:transparent;}
+  body{
+    background:
+      radial-gradient(ellipse at 20% -10%, rgba(51,217,196,0.08), transparent 60%),
+      radial-gradient(ellipse at 90% 10%, rgba(242,169,78,0.06), transparent 55%),
+      var(--bg);
+    padding:14px 14px 60px;
+  }
+  h1{font-size:19px;letter-spacing:0.5px;margin:4px 0 2px;color:var(--teal);font-weight:600;}
+  .sub{font-size:12px;color:var(--text-dim);margin:0 0 14px;line-height:1.5;}
+  .sub b{color:var(--amber);font-weight:600;}
+
+  /* ---- six-square grid ---- */
+  .grid6{
+    display:grid;
+    grid-template-columns:repeat(3,1fr);
+    grid-template-rows:repeat(2,1fr);
+    gap:6px;
+    margin-bottom:10px;
+  }
+  .cell{
+    background:var(--panel);
+    border:1px solid var(--line);
+    border-radius:10px;
+    padding:10px 8px;
+    min-height:64px;
+    display:flex;flex-direction:column;justify-content:space-between;
+    cursor:pointer;
+    transition:border-color .15s, background .15s;
+    position:relative;
+    overflow:hidden;
+  }
+  .cell::after{
+    content:"";position:absolute;inset:0;
+    background:radial-gradient(circle at 30% 20%, rgba(51,217,196,0.06), transparent 70%);
+    opacity:0; transition:opacity .2s;
+  }
+  .cell.active{border-color:var(--teal); background:var(--panel2);}
+  .cell.active::after{opacity:1;}
+  .cell .tag{font-size:10px;letter-spacing:1.5px;color:var(--text-dim);text-transform:uppercase;}
+  .cell .label{font-size:14px;font-weight:600;color:var(--text);}
+  .cell .hint{font-size:10px;color:var(--teal-dim);margin-top:2px;}
+
+  /* ---- detail panel ---- */
+  #detail{
+    background:var(--panel);
+    border:1px solid var(--line);
+    border-radius:10px;
+    padding:12px;
+    margin-bottom:12px;
+    font-size:12.5px;
+    line-height:1.6;
+    min-height:40px;
+  }
+  #detail h3{margin:0 0 6px;color:var(--amber);font-size:13px;letter-spacing:0.5px;}
+  #detail table{width:100%;border-collapse:collapse;font-size:12px;margin-top:6px;}
+  #detail td,#detail th{padding:3px 4px;border-bottom:1px solid var(--line);text-align:left;}
+  #detail th{color:var(--text-dim);font-weight:500;font-size:10.5px;text-transform:uppercase;letter-spacing:0.5px;}
+
+  /* ---- controls ---- */
+  .controls{
+    display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px;
+  }
+  button{
+    background:var(--panel2);
+    color:var(--teal);
+    border:1px solid var(--teal-dim);
+    border-radius:8px;
+    padding:9px 12px;
+    font-size:13px;
+    font-weight:600;
+    cursor:pointer;
+  }
+  button:active{background:var(--teal-dim);color:#052018;}
+  button.danger{color:var(--danger);border-color:#5c2e26;}
+  button:disabled{opacity:0.4;}
+
+  /* ---- stats strip ---- */
+  .stats{
+    display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-bottom:12px;
+  }
+  .stat{
+    background:var(--panel);border:1px solid var(--line);border-radius:10px;
+    padding:8px 10px;
+  }
+  .stat .n{font-size:16px;font-weight:700;color:var(--teal);}
+  .stat .l{font-size:9.5px;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.5px;}
+
+  section.block{
+    background:var(--panel);border:1px solid var(--line);border-radius:10px;
+    padding:10px;margin-bottom:12px;
+  }
+  section.block h2{
+    font-size:12px;letter-spacing:1px;text-transform:uppercase;color:var(--text-dim);
+    margin:0 0 8px;font-weight:600;
+  }
+  canvas{width:100%;display:block;background:var(--panel2);border-radius:8px;}
+
+  #log{
+    max-height:220px;overflow-y:auto;font-size:11.5px;line-height:1.7;
+    font-family:ui-monospace,Menlo,monospace;
+  }
+  #log .t{color:var(--amber);}
+  #log .row{border-bottom:1px solid var(--line);padding:3px 0;}
+  #log .buy{color:var(--teal);}
+  #log .sell{color:var(--text-dim);}
+  #log .prod{color:#8fb8b0;}
+
+  .agentcard{
+    display:inline-block;width:100%;
+    border:1px solid var(--line);border-radius:8px;padding:6px 8px;margin-bottom:6px;
+  }
+  .agentcard .name{font-weight:700;font-size:12.5px;}
+  .agentcard .row2{font-size:11px;color:var(--text-dim);margin-top:2px;}
+  .dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:5px;}
+
+  footer{margin-top:20px;font-size:10.5px;color:var(--text-dim);text-align:center;}
+</style>
+</head>
+<body>
+
+<h1>6con — V0</h1>
+<p class="sub">A six-lens economic laboratory. <b>Money is not one of the six squares</b> — it's tracked below as an emergent byproduct of WHO+WHAT+WHERE+WHEN+WHY+HOW interacting. Tap a square to inspect it.</p>
+
+<div class="grid6" id="grid6"></div>
+<div id="detail">Tap a square above to inspect that dimension of the running simulation.</div>
+
+<div class="controls">
+  <button id="btnStep">Step +1</button>
+  <button id="btnRun10">Run 10</button>
+  <button id="btnRun50">Run 50</button>
+  <button id="btnReset" class="danger">Reset</button>
+</div>
+
+<div class="stats">
+  <div class="stat"><div class="n" id="statTick">0</div><div class="l">Tick (WHEN)</div></div>
+  <div class="stat"><div class="n" id="statMoney">0</div><div class="l">Total credits in system</div></div>
+  <div class="stat"><div class="n" id="statTrades">0</div><div class="l">Trades cleared (life)</div></div>
+</div>
+
+<section class="block">
+  <h2>Output — credits over time (per agent)</h2>
+  <canvas id="chart" height="150"></canvas>
+</section>
+
+<section class="block">
+  <h2>Output — economic network (trade volume between agents)</h2>
+  <canvas id="network" height="220"></canvas>
+</section>
+
+<section class="block">
+  <h2>Output — event log (most recent first)</h2>
+  <div id="log"></div>
+</section>
+
+<footer>6con V0 · runs entirely in-browser · state saved to localStorage · no server, no API</footer>
+
+<script>
+/* ============================================================
+   6CON V0 — rule-based artificial economy
+   ============================================================ */
+
+const RESOURCES = ['food','materials','tech'];
+const RESOURCE_LABEL = {food:'Food', materials:'Materials', tech:'Tech'};
+const STORAGE_KEY = '6con-state-v0';
+
+const CELL_INFO = {
+  WHO: {label:'Agents', desc:'The participants in the economy — each with an identity, a production capability, a stock of resources, credits, and evolving price beliefs. Nothing about the economy exists without them.'},
+  WHAT:{label:'Resources', desc:'The tangible/informational things agents produce, hold, need, and trade. Credits are NOT one of these — they are the medium that emerges from trading them.'},
+  WHERE:{label:'Systems', desc:'The shared environment where offers and requests meet. In V0 this is a simple open marketplace re-formed fresh every tick.'},
+  WHEN:{label:'Time', desc:'The tick clock. Production, consumption, price adaptation, and history all accumulate tick over tick — nothing here is instantaneous.'},
+  WHY: {label:'Value', desc:'Each agent has need-thresholds and price beliefs — what it considers enough, and what it considers a fair price. These drift every tick based on what actually happened.'},
+  HOW: {label:'Coordination', desc:'The matching mechanism: sellers post asks, buyers post bids, compatible pairs clear at a mid-price. This is the only place resources actually change hands.'}
+};
+
+function rnd(min,max){ return min + Math.random()*(max-min); }
+function clamp(v,lo,hi){ return Math.max(lo,Math.min(hi,v)); }
+function round1(n){ return Math.round(n*10)/10; }
+
+function freshAgents(){
+  return [
+    {id:'farmer',   name:'Farmer',   color:'#7ee6c9', capability:'food',      productionRate:4,
+      resources:{food:3, materials:0, tech:0}, credits:50,
+      thresholds:{food:2, materials:4, tech:3},
+      priceBeliefs:{food:5, materials:5, tech:5}, history:[]},
+    {id:'miner',    name:'Miner',    color:'#f2a94e', capability:'materials', productionRate:4,
+      resources:{food:0, materials:3, tech:0}, credits:50,
+      thresholds:{food:4, materials:2, tech:3},
+      priceBeliefs:{food:5, materials:5, tech:5}, history:[]},
+    {id:'engineer', name:'Engineer', color:'#8fb0ff', capability:'tech',      productionRate:2,
+      resources:{food:0, materials:0, tech:3}, credits:50,
+      thresholds:{food:4, materials:4, tech:2},
+      priceBeliefs:{food:5, materials:5, tech:5}, history:[]},
+    {id:'trader',   name:'Trader',   color:'#e0654f', capability:null,        productionRate:0,
+      resources:{food:0, materials:0, tech:0}, credits:80,
+      thresholds:{food:3, materials:3, tech:3},
+      priceBeliefs:{food:5, materials:5, tech:5}, history:[]}
+  ];
+}
+
+function freshState(){
+  return {
+    tick:0,
+    agents: freshAgents(),
+    tradeMatrix: {},  // tradeMatrix[sellerId][buyerId] = cumulative credit volume
+    lifetimeTrades: 0,
+    lifetimeProduction: 0,
+    log: [] // {tick, type, text}
+  };
+}
+
+let state = load() || freshState();
+
+function save(){
+  try{ localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); }catch(e){}
+}
+function load(){
+  try{
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if(!raw) return null;
+    return JSON.parse(raw);
+  }catch(e){ return null; }
+}
+
+function addLog(type, text){
+  state.log.unshift({tick:state.tick, type, text});
+  if(state.log.length > 400) state.log.length = 400;
+}
+
+/* ---------- ONE TICK ---------- */
+function tick(){
+  state.tick++;
+
+  // 1. PRODUCTION (WHO acting on WHAT, over WHEN)
+  state.agents.forEach(a=>{
+    if(a.capability){
+      const amt = round1(a.productionRate * rnd(0.75, 1.25));
+      a.resources[a.capability] += amt;
+      state.lifetimeProduction += amt;
+      addLog('prod', `${a.name} produced ${amt} ${RESOURCE_LABEL[a.capability]}`);
+    }
+  });
+
+  // 2. Determine offers/requests per resource (WHY -> WHERE)
+  const sellOffers = {food:[],materials:[],tech:[]};
+  const buyOffers   = {food:[],materials:[],tech:[]};
+
+  state.agents.forEach(a=>{
+    RESOURCES.forEach(r=>{
+      const diff = a.resources[r] - a.thresholds[r];
+      if(diff > 0.3){
+        const qty = round1(Math.min(diff, 3)); // sell at most half-batch per tick
+        const price = round1(a.priceBeliefs[r] * 1.1);
+        sellOffers[r].push({agent:a, qty, price});
+      } else if(diff < -0.3){
+        const qty = round1(Math.min(-diff, 3));
+        const price = round1(a.priceBeliefs[r] * 0.9);
+        buyOffers[r].push({agent:a, qty, price});
+      }
+    });
+  });
+
+  // 3. MATCH & CLEAR (HOW)
+  let clearedThisTick = 0;
+  RESOURCES.forEach(r=>{
+    const sells = sellOffers[r].sort((x,y)=>x.price-y.price);
+    const buys  = buyOffers[r].sort((x,y)=>y.price-x.price);
+    let si=0, bi=0;
+    const sellerFilled = new Map(); // track fill ratio for price learning
+    const buyerFilled = new Map();
+
+    while(si < sells.length && bi < buys.length){
+      const s = sells[si], b = buys[bi];
+      if(b.price < s.price) break; // no more crossing possible (buys sorted desc, sells asc)
+
+      const clearPrice = round1((s.price + b.price)/2);
+      let qty = Math.min(s.qty, b.qty);
+      const affordable = b.agent.credits / clearPrice;
+      qty = round1(Math.min(qty, affordable));
+
+      if(qty > 0.05){
+        s.agent.resources[r] = round1(s.agent.resources[r] - qty);
+        b.agent.resources[r] = round1(b.agent.resources[r] + qty);
+        const value = round1(qty * clearPrice);
+        s.agent.credits = round1(s.agent.credits + value);
+        b.agent.credits = round1(b.agent.credits - value);
+
+        if(!state.tradeMatrix[s.agent.id]) state.tradeMatrix[s.agent.id] = {};
+        state.tradeMatrix[s.agent.id][b.agent.id] = round1((state.tradeMatrix[s.agent.id][b.agent.id]||0) + value);
+
+        state.lifetimeTrades++;
+        clearedThisTick++;
+        addLog('buy', `${b.agent.name} bought ${qty} ${RESOURCE_LABEL[r]} from ${s.agent.name} @ ${clearPrice}cr (total ${value}cr)`);
+
+        s.qty = round1(s.qty - qty);
+        b.qty = round1(b.qty - qty);
+      }
+
+      sellerFilled.set(s.agent.id, (s.qty <= 0.05));
+      buyerFilled.set(b.agent.id, (b.qty <= 0.05));
+
+      if(s.qty <= 0.05) si++;
+      if(b.qty <= 0.05) bi++;
+      if(qty <= 0.05) break; // buyer ran out of affordable credits, stop this resource
+    }
+
+    // 4. ADAPT price beliefs (WHY learns from HOW's outcome)
+    sells.forEach(s=>{
+      const filled = sellerFilled.get(s.agent.id);
+      if(filled === true){
+        s.agent.priceBeliefs[r] = clamp(round1(s.agent.priceBeliefs[r]*1.05), 1, 60);
+      } else {
+        s.agent.priceBeliefs[r] = clamp(round1(s.agent.priceBeliefs[r]*0.93), 1, 60);
+      }
+    });
+    buys.forEach(b=>{
+      const filled = buyerFilled.get(b.agent.id);
+      if(filled === true){
+        b.agent.priceBeliefs[r] = clamp(round1(b.agent.priceBeliefs[r]*0.97), 1, 60);
+      } else {
+        b.agent.priceBeliefs[r] = clamp(round1(b.agent.priceBeliefs[r]*1.06), 1, 60);
+      }
+    });
+  });
+
+  // 5. SNAPSHOT (WHEN accumulates)
+  state.agents.forEach(a=>{
+    a.history.push({tick:state.tick, credits:a.credits});
+    if(a.history.length > 300) a.history.shift();
+  });
+
+  addLog('t', `— tick ${state.tick} complete: ${clearedThisTick} trade(s) cleared —`);
+  save();
+}
+
+/* ============================================================
+   RENDERING
+   ============================================================ */
+
+const gridDef = [
+  {key:'WHO',label:'WHO'},{key:'WHAT',label:'WHAT'},{key:'WHERE',label:'WHERE'},
+  {key:'WHEN',label:'WHEN'},{key:'WHY',label:'WHY'},{key:'HOW',label:'HOW'}
+];
+let activeCell = null;
+
+function renderGrid(){
+  const g = document.getElementById('grid6');
+  g.innerHTML = '';
+  gridDef.forEach(c=>{
+    const div = document.createElement('div');
+    div.className = 'cell' + (activeCell===c.key ? ' active':'');
+    div.innerHTML = `<div class="tag">${c.key}</div>
+      <div class="label">${CELL_INFO[c.key].label}</div>
+      <div class="hint">tap to inspect</div>`;
+    div.onclick = ()=>{ activeCell = (activeCell===c.key ? null : c.key); renderGrid(); renderDetail(); };
+    g.appendChild(div);
+  });
+}
+
+function renderDetail(){
+  const d = document.getElementById('detail');
+  if(!activeCell){
+    d.innerHTML = 'Tap a square above to inspect that dimension of the running simulation.';
+    return;
+  }
+  const info = CELL_INFO[activeCell];
+  let html = `<h3>${activeCell} — ${info.label}</h3><div>${info.desc}</div>`;
+
+  if(activeCell === 'WHO'){
+    html += state.agents.map(a=>`
+      <div class="agentcard">
+        <div class="name"><span class="dot" style="background:${a.color}"></span>${a.name}</div>
+        <div class="row2">capability: ${a.capability ? RESOURCE_LABEL[a.capability] : 'none (pure consumer)'} · credits: ${a.credits}</div>
+        <div class="row2">stock — food ${a.resources.food} · materials ${a.resources.materials} · tech ${a.resources.tech}</div>
+      </div>`).join('');
+  }
+
+  if(activeCell === 'WHAT'){
+    html += '<table><tr><th>Resource</th><th>Total in system</th><th>Held by</th></tr>';
+    RESOURCES.forEach(r=>{
+      const total = round1(state.agents.reduce((s,a)=>s+a.resources[r],0));
+      const holders = state.agents.filter(a=>a.resources[r]>0.1).map(a=>a.name).join(', ') || '—';
+      html += `<tr><td>${RESOURCE_LABEL[r]}</td><td>${total}</td><td>${holders}</td></tr>`;
+    });
+    html += '</table>';
+  }
+
+  if(activeCell === 'WHERE'){
+    const lastTicks = state.log.filter(l=>l.tick===state.tick && (l.type==='buy')).length;
+    html += `<div style="margin-top:6px;">Trades cleared last tick: <b>${lastTicks}</b><br>
+      Lifetime trades cleared: <b>${state.lifetimeTrades}</b><br>
+      The marketplace holds no memory of its own — it re-forms from scratch every tick out of whatever agents currently offer.</div>`;
+  }
+
+  if(activeCell === 'WHEN'){
+    html += `<div style="margin-top:6px;">Current tick: <b>${state.tick}</b><br>
+      History recorded per agent: up to last 300 ticks<br>
+      Lifetime production: <b>${round1(state.lifetimeProduction)}</b> units across all resources</div>`;
+  }
+
+  if(activeCell === 'WHY'){
+    html += '<table><tr><th>Agent</th><th>Threshold (food/mat/tech)</th><th>Belief price (food/mat/tech)</th></tr>';
+    state.agents.forEach(a=>{
+      html += `<tr><td>${a.name}</td><td>${a.thresholds.food}/${a.thresholds.materials}/${a.thresholds.tech}</td>
+        <td>${a.priceBeliefs.food}/${a.priceBeliefs.materials}/${a.priceBeliefs.tech}</td></tr>`;
+    });
+    html += '</table><div style="margin-top:6px;">Thresholds are fixed in V0 (what each agent considers "enough"). Price beliefs adapt every tick based on whether their offers cleared.</div>';
+  }
+
+  if(activeCell === 'HOW'){
+    const totalMoney = round1(state.agents.reduce((s,a)=>s+a.credits,0));
+    html += `<div style="margin-top:6px;">Mechanism: double auction — sellers ask, buyers bid, matched pairs clear at the mid-price, limited by the buyer's available credits.<br><br>
+      Total credits currently in system: <b>${totalMoney}</b> (this number is never set directly — it only moves because trades clear here).</div>`;
+  }
+
+  d.innerHTML = html;
+}
+
+function renderStats(){
+  document.getElementById('statTick').textContent = state.tick;
+  document.getElementById('statMoney').textContent = round1(state.agents.reduce((s,a)=>s+a.credits,0));
+  document.getElementById('statTrades').textContent = state.lifetimeTrades;
+}
+
+function renderLog(){
+  const el = document.getElementById('log');
+  el.innerHTML = state.log.slice(0,120).map(l=>{
+    const cls = l.type==='t' ? 't' : (l.type==='prod' ? 'prod' : (l.type==='buy'?'buy':'sell'));
+    return `<div class="row ${cls}">[${l.tick}] ${l.text}</div>`;
+  }).join('');
+}
+
+function renderChart(){
+  const canvas = document.getElementById('chart');
+  const dpr = window.devicePixelRatio || 1;
+  const w = canvas.clientWidth, h = canvas.clientHeight || 150;
+  canvas.width = w*dpr; canvas.height = h*dpr;
+  const ctx = canvas.getContext('2d');
+  ctx.scale(dpr,dpr);
+  ctx.clearRect(0,0,w,h);
+
+  const allHistories = state.agents.map(a=>a.history);
+  const maxLen = Math.max(1, ...allHistories.map(h=>h.length));
+  const allCredits = allHistories.flat().map(p=>p.credits);
+  const maxC = Math.max(20, ...allCredits, 1);
+  const minC = Math.min(0, ...allCredits);
+
+  // gridlines
+  ctx.strokeStyle = 'rgba(51,217,196,0.08)';
+  ctx.lineWidth = 1;
+  for(let i=0;i<=3;i++){
+    const y = 10 + (h-30)*(i/3);
+    ctx.beginPath(); ctx.moveTo(30,y); ctx.lineTo(w-6,y); ctx.stroke();
+  }
+
+  ctx.font = '9px -apple-system, sans-serif';
+  ctx.fillStyle = 'rgba(127,163,154,0.8)';
+  for(let i=0;i<=3;i++){
+    const val = round1(maxC - (maxC-minC)*(i/3));
+    const y = 10 + (h-30)*(i/3);
+    ctx.fillText(val, 2, y+3);
+  }
+
+  state.agents.forEach(a=>{
+    if(a.history.length < 2) return;
+    ctx.beginPath();
+    ctx.strokeStyle = a.color;
+    ctx.lineWidth = 2;
+    a.history.forEach((p,i)=>{
+      const x = 30 + (w-40) * (i/(maxLen-1||1));
+      const y = 10 + (h-30) * (1 - (p.credits-minC)/((maxC-minC)||1));
+      if(i===0) ctx.moveTo(x,y); else ctx.lineTo(x,y);
+    });
+    ctx.stroke();
+  });
+
+  // legend
+  let lx = 30;
+  ctx.font = '10px -apple-system, sans-serif';
+  state.agents.forEach(a=>{
+    ctx.fillStyle = a.color;
+    ctx.fillRect(lx, h-14, 8, 8);
+    ctx.fillStyle = 'var(--text)';
+    ctx.fillStyle = '#d8f3ee';
+    ctx.fillText(a.name, lx+11, h-6);
+    lx += ctx.measureText(a.name).width + 30;
+  });
+}
+
+function renderNetwork(){
+  const canvas = document.getElementById('network');
+  const dpr = window.devicePixelRatio || 1;
+  const w = canvas.clientWidth, h = canvas.clientHeight || 220;
+  canvas.width = w*dpr; canvas.height = h*dpr;
+  const ctx = canvas.getContext('2d');
+  ctx.scale(dpr,dpr);
+  ctx.clearRect(0,0,w,h);
+
+  const cx = w/2, cy = h/2, radius = Math.min(w,h)/2 - 40;
+  const n = state.agents.length;
+  const pos = {};
+  state.agents.forEach((a,i)=>{
+    const ang = (i/n)*Math.PI*2 - Math.PI/2;
+    pos[a.id] = {x: cx + radius*Math.cos(ang), y: cy + radius*Math.sin(ang)};
+  });
+
+  // find max volume for scaling
+  let maxVol = 1;
+  Object.values(state.tradeMatrix).forEach(m=>Object.values(m).forEach(v=>{ if(v>maxVol) maxVol=v; }));
+
+  // edges
+  Object.keys(state.tradeMatrix).forEach(sellerId=>{
+    Object.keys(state.tradeMatrix[sellerId]).forEach(buyerId=>{
+      const vol = state.tradeMatrix[sellerId][buyerId];
+      const p1 = pos[sellerId], p2 = pos[buyerId];
+      if(!p1||!p2) return;
+      ctx.beginPath();
+      ctx.strokeStyle = 'rgba(51,217,196,' + clamp(0.15 + 0.6*(vol/maxVol), 0.15, 0.85) + ')';
+      ctx.lineWidth = clamp(1 + 5*(vol/maxVol), 1, 6);
+      ctx.moveTo(p1.x,p1.y); ctx.lineTo(p2.x,p2.y); ctx.stroke();
+    });
+  });
+
+  // nodes
+  state.agents.forEach(a=>{
+    const p = pos[a.id];
+    ctx.beginPath();
+    ctx.fillStyle = a.color;
+    ctx.arc(p.x,p.y,16,0,Math.PI*2);
+    ctx.fill();
+    ctx.fillStyle = '#04100e';
+    ctx.font = 'bold 10px -apple-system, sans-serif';
+    ctx.textAlign='center'; ctx.textBaseline='middle';
+    ctx.fillText(a.name[0], p.x, p.y);
+    ctx.fillStyle = '#d8f3ee';
+    ctx.font = '10.5px -apple-system, sans-serif';
+    ctx.fillText(a.name, p.x, p.y+28);
+    ctx.fillStyle = 'rgba(127,163,154,0.85)';
+    ctx.font = '9.5px -apple-system, sans-serif';
+    ctx.fillText(a.credits+'cr', p.x, p.y+40);
+  });
+  ctx.textAlign='left'; ctx.textBaseline='alphabetic';
+}
+
+function renderAll(){
+  renderGrid();
+  renderDetail();
+  renderStats();
+  renderLog();
+  renderChart();
+  renderNetwork();
+}
+
+/* ---------- CONTROLS ---------- */
+let running = false;
+function setButtonsDisabled(v){
+  ['btnStep','btnRun10','btnRun50','btnReset'].forEach(id=>{
+    document.getElementById(id).disabled = v;
+  });
+}
+
+document.getElementById('btnStep').onclick = ()=>{
+  tick(); renderAll();
+};
+
+async function runN(n){
+  if(running) return;
+  running = true; setButtonsDisabled(true);
+  for(let i=0;i<n;i++){
+    tick();
+    renderAll();
+    await new Promise(r=>setTimeout(r, 90));
+  }
+  running = false; setButtonsDisabled(false);
+}
+
+document.getElementById('btnRun10').onclick = ()=>runN(10);
+document.getElementById('btnRun50').onclick = ()=>runN(50);
+
+document.getElementById('btnReset').onclick = ()=>{
+  if(confirm('Reset the simulation? This clears all history.')){
+    state = freshState();
+    save();
+    renderAll();
+  }
+};
+
+// initial history snapshot if fresh
+if(state.agents[0].history.length === 0){
+  state.agents.forEach(a=> a.history.push({tick:0, credits:a.credits}));
+}
+
+renderAll();
+</script>
+</body>
+</html>
